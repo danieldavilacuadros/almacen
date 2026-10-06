@@ -479,13 +479,19 @@ async function refrescarDesdeNube(forzar=false){
   try{ await cargarNube(); renderTodo(); if(forzar) toast('Datos actualizados'); }catch(e){ if(forzar) alert('No se pudo actualizar: '+(e.message||e)); }
 }
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refrescarDesdeNube(); });
+// El usuario escribe un nombre corto (ej. "admin"); Supabase Auth necesita un correo, así que se usa uno
+// interno que nunca se muestra. Si se escribe un correo completo, se usa tal cual.
+const DOMINIO_USUARIOS = 'almacen.interno';
+const correoDeUsuario = u => u.includes('@') ? u.toLowerCase() : `${u.toLowerCase()}@${DOMINIO_USUARIOS}`;
+const nombreDeSesion = () => (sesion?.user?.email || '').replace('@'+DOMINIO_USUARIOS, '');
 async function ingresarNube(){
-  const email = document.getElementById('lg-email').value.trim(), pass = document.getElementById('lg-pass').value, err = document.getElementById('lg-err');
-  if(!email || !pass){ err.textContent = 'Escribe tu correo y contraseña.'; return; }
+  const usuario = document.getElementById('lg-email').value.trim(), pass = document.getElementById('lg-pass').value, err = document.getElementById('lg-err');
+  if(!usuario || !pass){ err.textContent = 'Escribe tu usuario y contraseña.'; return; }
+  const email = correoDeUsuario(usuario);
   err.textContent = ''; document.getElementById('lg-btn').disabled = true;
   const {data, error} = await sb.auth.signInWithPassword({email, password:pass});
   document.getElementById('lg-btn').disabled = false;
-  if(error){ err.textContent = /Invalid login/i.test(error.message) ? 'Correo o contraseña incorrectos.' : 'No se pudo conectar. Revisa tu internet e intenta de nuevo.'; return; }
+  if(error){ err.textContent = /Invalid login/i.test(error.message) ? 'Usuario o contraseña incorrectos.' : 'No se pudo conectar. Revisa tu internet e intenta de nuevo.'; return; }
   sesion = data.session; await iniciarSesionNube();
 }
 async function iniciarSesionNube(){
@@ -500,7 +506,7 @@ async function salirNube(){
 }
 function htmlLogin(){
   return `<div class="card gate" style="text-align:left"><h2>Ingresar</h2><p class="desc">Sistema de almacén · datos en la nube</p>
-    <div class="field full" style="margin-bottom:10px"><label>Correo</label><input id="lg-email" type="email" autocomplete="username"></div>
+    <div class="field full" style="margin-bottom:10px"><label>Usuario</label><input id="lg-email" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
     <div class="field full" style="margin-bottom:10px"><label>Contraseña</label><input id="lg-pass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')ingresarNube()"></div>
     <button class="btn" id="lg-btn" style="width:100%" onclick="ingresarNube()">Ingresar</button><div id="lg-err" class="err" style="margin-top:8px"></div></div>`;
 }
@@ -2791,7 +2797,7 @@ function renderArchivoNube(){
     <div class="grid2">
       <div class="card"><h3 class="sec">Nube</h3>
         <div class="alerta ${nubeEstado==='error'?'warn':'info'}">${nubeEstado==='error'?'Hay cambios sin subir por falta de conexión. <a href="#" onclick="reintentarNube();return false">Reintentar ahora</a>':'Cada cambio se sube al instante.'}</div>
-        <p class="hint">Sesión: <b>${esc(sesion?.user?.email)}</b> · datos traídos ${new Date(ultimaCarga).toLocaleString('es-PE')}.<br>Contenido: ${resumenConteos(db)}.</p>
+        <p class="hint">Sesión: <b>${esc(nombreDeSesion())}</b> · datos traídos ${new Date(ultimaCarga).toLocaleString('es-PE')}.<br>Contenido: ${resumenConteos(db)}.</p>
         <p class="hint">Si usas la PC y el celular a la vez, al volver a una pestaña se traen los cambios del otro dispositivo (o usa ↻ arriba).</p></div>
       <div class="card"><h3 class="sec">Respaldo</h3>
         <p class="hint">Descarga una copia completa con fecha, una vez por semana. Es tu seguro si algo sale mal.</p>
